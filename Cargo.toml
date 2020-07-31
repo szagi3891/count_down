@@ -14,7 +14,3 @@ rayon = "1.1"
 
 [dev-dependencies]
 criterion = "0.3"
-
-[[bench]]
-name = "count_down_bench"
-harness = false

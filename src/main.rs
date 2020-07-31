@@ -94,17 +94,19 @@ impl Expression {
 }
 
 fn combine(leftExpression: Vec<Expression>, rightExpression: Vec<Expression>) -> Vec<Expression> {
-    let mut out = Vec::<Expression>::new();
+    leftExpression.iter().flat_map(|left| {
+        rightExpression.iter().flat_map(move |right| {
+            Op::all().into_iter().map(move |op| {
+                Expression::new(&left, op.clone(), &right)
+            })
+        })
+    }).collect()
+}
 
-    for left in &leftExpression {
-        for right in &rightExpression {
-            for op in Op::all() {
-                out.push(Expression::new(left, op, right))
-            }
-        }
-    }
-
-    out
+fn split(dataIn: &[i64]) -> impl Iterator<Item=(&[i64], &[i64])> {
+    (1..dataIn.len()).map(move |index| {
+        dataIn.split_at(index)
+    })
 }
 
 fn allExpression(dataIn: &[i64]) -> Vec<Expression>{
@@ -115,9 +117,7 @@ fn allExpression(dataIn: &[i64]) -> Vec<Expression>{
 
     let mut out = Vec::<Expression>::new();
 
-    for index in 1..dataIn.len() {
-        let (left, right) = dataIn.split_at(index);
-
+    for (left, right) in split(dataIn) {
         let leftExpression = allExpression(left);
         let rightExpression = allExpression(right);
         
