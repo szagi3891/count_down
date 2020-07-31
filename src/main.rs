@@ -93,9 +93,9 @@ impl Expression {
     }
 }
 
-fn combine<'a, A, B>(leftExpression: A, rightExpression: B) -> Vec<Expression> where
-    A: Fn() -> Box<dyn Iterator<Item=Expression> + 'a>,
-    B: Fn() -> Box<dyn Iterator<Item=Expression> + 'a>
+fn combine<'a, A, B>(leftExpression: A, rightExpression: B) -> impl Iterator<Item=Expression> + 'a where
+    A: Fn() -> Box<dyn Iterator<Item=Expression> + 'a> + 'a,
+    B: Fn() -> Box<dyn Iterator<Item=Expression> + 'a> + 'a,
 {
     leftExpression().flat_map(move |left| {
         rightExpression().flat_map(move |right| {
@@ -104,7 +104,7 @@ fn combine<'a, A, B>(leftExpression: A, rightExpression: B) -> Vec<Expression> w
                 Expression::new(&left, op.clone(), &right)
             })
         })
-    }).collect()
+    })
 }
 
 fn split(dataIn: &[i64]) -> impl Iterator<Item=(&[i64], &[i64])> {
@@ -125,10 +125,12 @@ fn allExpression(dataIn: &[i64]) -> Vec<Expression>{
         let leftExpression = allExpression(left);
         let rightExpression = allExpression(right);
         
-        let mut combination = combine(
+        let combination = combine(
             || Box::new(leftExpression.iter().cloned()), 
             || Box::new(rightExpression.iter().cloned())
         );
+
+        let mut combination = combination.collect();
         out.append(&mut combination);
     }
 
