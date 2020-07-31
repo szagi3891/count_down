@@ -93,18 +93,21 @@ impl Expression {
     }
 }
 
-fn combine<'a, A, B>(leftExpression: A, rightExpression: B) -> impl Iterator<Item=Expression> + 'a where
-    A: Fn() -> Box<dyn Iterator<Item=Expression> + 'a> + 'a,
-    B: Fn() -> Box<dyn Iterator<Item=Expression> + 'a> + 'a,
-{
-    leftExpression().flat_map(move |left| {
-        rightExpression().flat_map(move |right| {
+fn combine<'a>(
+    leftExpression: Box<dyn Iterator<Item=Expression> +'a>,
+    rightExpression: Box<dyn Iterator<Item=Expression> + 'a>
+) -> Box<dyn Iterator<Item=Expression> + 'a> {
+    let rightExpression: Vec<Expression> = rightExpression.collect();
+
+    Box::new(leftExpression.flat_map(move |left| {
+        let rightExpression = rightExpression.clone();
+        rightExpression.into_iter().flat_map(move |right| {
             let left = left.clone();
             Op::all().into_iter().map(move |op| {
                 Expression::new(&left, op.clone(), &right)
             })
         })
-    })
+    }))
 }
 
 fn split(dataIn: &[i64]) -> impl Iterator<Item=(&[i64], &[i64])> {
@@ -113,28 +116,20 @@ fn split(dataIn: &[i64]) -> impl Iterator<Item=(&[i64], &[i64])> {
     })
 }
 
-fn allExpression(dataIn: &[i64]) -> Vec<Expression>{
+fn allExpression<'a>(dataIn: &'a [i64]) -> Box<dyn Iterator<Item=Expression> + 'a> {
     if dataIn.len() == 1 {
         let first = dataIn[0];
-        return vec!(Expression::fromConst(first));
+        return Box::new(vec!(Expression::fromConst(first)).into_iter());
     }
 
-    let mut out = Vec::<Expression>::new();
-
-    for (left, right) in split(dataIn) {
+    Box::new(split(dataIn).flat_map(|(left, right)| {
         let leftExpression = allExpression(left);
         let rightExpression = allExpression(right);
         
-        let combination = combine(
-            || Box::new(leftExpression.iter().cloned()), 
-            || Box::new(rightExpression.iter().cloned())
-        );
+        let combination = combine(leftExpression, rightExpression);
 
-        let mut combination = combination.collect();
-        out.append(&mut combination);
-    }
-
-    out
+        combination
+    }))
 }
 
 fn main() {
@@ -144,7 +139,7 @@ fn main() {
     let dataInSlice = dataIn.as_slice();
     let all = allExpression(dataInSlice);
 
-    println!("Przeszukuję z: {}", all.len());
+    //println!("Przeszukuję z: {}", all.len());
 
     for item in all {
         let total = item.total();
